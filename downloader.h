@@ -1,5 +1,4 @@
-#ifdef __DOWNLOADER_H__
+#ifndef __DOWNLOADER_H__
 #define __DOWNLOADER_H__
-
-extern int download_file(const char* url, const char *outPath);
+int download_file(char* url, char *outPath);
 #endif
