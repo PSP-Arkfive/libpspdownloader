@@ -8,9 +8,9 @@
  */
 
 #include <pspkernel.h>
-#include <pspdebug.h>
 #include <pspdisplay.h>
 #include <pspctrl.h>
+#include <pspdebug.h>
 #include <pspnet.h>
 #include <pspnet_inet.h>
 #include <pspnet_apctl.h>
@@ -19,47 +19,15 @@
 #include <pspsdk.h>
 #include <psputility.h>
 #include <psputility_modules.h>
-#include <kubridge.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include "downloader.h"
 
-PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER);
-PSP_HEAP_SIZE_KB(1024); /* leave 1MB free heap */
-
 #define printf pspDebugScreenPrintf
 
-/* ---- config: edit these for your target file ---- */
-#define DOWNLOAD_URL      "http://du01.psp.update.playstation.org/update/psp/image/us/2014_1212_6be8878f475ac5b1a499b95ab2f7d301/EBOOT.PBP"
-#define DOWNLOAD_URL_GO   "http://du01.psp.update.playstation.org/update/psp/image2/us/2014_1212_fd0f7d0798b4f6e6d32ef95836740527/EBOOT.PBP"
-#define OUTPUT_PATH       "ms0:/661.PBP"
-#define OUTPUT_PATH_GO    "ms0:/661GO.PBP"
-#define READ_CHUNK        4096
-/* -------------------------------------------------- */
-
-int exit_callback(int arg1, int arg2, void *common)
-{
-    sceKernelExitGame();
-    return 0;
-}
-
-int callback_thread(SceSize args, void *argp)
-{
-    int cbid = sceKernelCreateCallback("Exit Callback", exit_callback, NULL);
-    sceKernelRegisterExitCallback(cbid);
-    sceKernelSleepThreadCB();
-    return 0;
-}
-
-int setup_callbacks(void)
-{
-    int thid = sceKernelCreateThread("update_thread", callback_thread,
-                                      0x11, 0xFA0, 0, 0);
-    if (thid >= 0)
-        sceKernelStartThread(thid, 0, 0);
-    return thid;
-}
+#define READ_CHUNK (4096)
+//PSP_HEAP_SIZE_KB(1024);
 
 /* PSP homebrew must explicitly load these kernel-mode PRX modules before
    using the corresponding sceNet / sceHttp APIs, or calls like sceNetInit
@@ -158,7 +126,26 @@ int net_connect(void)
 
     /* Connect using access point config slot 1 (must already be set up
        in the PSP's Network Settings). */
-    err = sceNetApctlConnect(1);
+	int found = 0;
+	int wifiProfile = -1;
+    for (int i = 1; i < 10; i++) { // If no profiles are setup this will still act like there is a valid connection
+        int r = sceUtilityCheckNetParam(i);
+        #ifdef DEBUG
+        printf("sceUtilityCheckNetParam(%d) = 0x%08X\n", i, r);
+        #endif
+        if (r == 0) {
+			found = 1;
+			wifiProfile = i;
+			break;
+		}
+    }
+    if (!found) {
+        #ifdef DEBUG
+        printf("No valid network configs found at all.\n");
+		return -1;
+        #endif
+    }
+    err = sceNetApctlConnect(wifiProfile);
     if (err < 0) {
         #ifdef DEBUG
         printf("sceNetApctlConnect failed: 0x%08X\n", err);
@@ -212,20 +199,27 @@ void net_disconnect(void)
 int download_file(char *url, char *outPath)
 {
     int result;
-    int templateId = -1, connectionId = -1, requestId = -1;
-    SceUChar *buf = NULL;
+    int templateId = -1, connectionId = -1, requestId = -1, netconnect = -1;
+    //SceUChar *buf = NULL;
+	u8 buf[READ_CHUNK];
     //SceIoStat st;
 
-    result = sceHttpInit(40 * 1024);
-    if (result < 0) { 
+	netconnect = net_connect();
+	if(netconnect < 0) {
         #ifdef DEBUG
-		printf("sceHttpInit failed: 0x%08X\n", result); 
+		printf("net_connect failed: 0x%08X\n", netconnect); 
         #endif
-		return result; 
+		goto cleanup;
 	}
 
     /* If you need HTTPS support, also init sceSsl + sceHttpsInit here. */
-
+    result = sceHttpInit(40 * 1024); // pool size in bytes; adjust as needed
+    if (result < 0) {
+        #ifdef DEBUG
+        printf("sceHttpInit failed: 0x%08X\n", result);
+        #endif
+        return result;
+    }
     templateId = sceHttpCreateTemplate("PSP-Downloader/1.0", PSP_HTTP_VERSION_1_1, 1);
     if (templateId < 0) { 
         #ifdef DEBUG
@@ -286,16 +280,6 @@ int download_file(char *url, char *outPath)
         goto cleanup;
     }
 
-    buf = (SceUChar *)malloc(READ_CHUNK);
-    if (!buf) {
-        #ifdef DEBUG
-        printf("Out of memory allocating read buffer\n");
-        #endif
-        sceIoClose(fd);
-        result = -1;
-        goto cleanup;
-    }
-
     unsigned long long totalRead = 0;
     while (1) {
         int r = sceHttpReadData(requestId, buf, READ_CHUNK);
@@ -321,12 +305,10 @@ int download_file(char *url, char *outPath)
     result = 0;
 
 cleanup:
-    if (buf) free(buf);
+    //if (buf) free(buf);
     if (requestId >= 0) sceHttpDeleteRequest(requestId);
     if (connectionId >= 0) sceHttpDeleteConnection(connectionId);
     if (templateId >= 0) sceHttpDeleteTemplate(templateId);
     sceHttpEnd();
     return result;
 }
-
-
