@@ -8,6 +8,8 @@ jobs:
     container:
       image: pspdev/pspdev:latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Build Lib
         run: |
           make -f Makefile
