@@ -12,7 +12,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Deps
         run: |
-          apk add zip -y
+          apk update
+          apk add zip
       - name: Build Lib
         run: |
           make -f Makefile
