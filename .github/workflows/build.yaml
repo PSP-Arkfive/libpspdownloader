@@ -9,7 +9,7 @@ jobs:
       image: pspdev/pspdev:latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Deps
         run: |
           apk update
@@ -20,7 +20,7 @@ jobs:
           make -f Makefile.DEBUG
           zip libpspdownloader.zip libpspdownloader*.a
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Libs
           path: libpspdownloader.zip
