@@ -25,6 +25,8 @@ jobs:
           name: Libs
           path: libpspdownloader.zip
   release:
+    permissions:
+      contents: write
     needs: build
     runs-on: ubuntu-latest
     steps:
