@@ -1,0 +1,22 @@
+name: PSP Downloader Lib
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: pspdev/pspdev:latest
+    steps:
+      - name: Build Lib
+        run: |
+          make -f Makefile
+          make -f Makefile.DEBUG
+          zip libpspdownloader.zip libpspdownloader*.a
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Libs
+          path: libpspdownloader.zip
+
+
