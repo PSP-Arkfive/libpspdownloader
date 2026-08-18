@@ -23,6 +23,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Libs
-          path: libpspdownloader.zip
+          path: ./libpspdownloader.zip
+  release:
+    depends_on: build
+    - name: Release
+      uses: softprops/action-gh-release
+      with:
+        files: ./libpspdownloader.zip
 
 
