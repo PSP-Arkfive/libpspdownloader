@@ -32,10 +32,10 @@ jobs:
         uses: actions/download-artifact@v8
       - name: Release
         uses: softprops/action-gh-release@v3
-        tag_name: latest
-        prerelease: false
-        make_latest: true
         with:
+          tag_name: latest
+          prerelease: false
+          make_latest: true
           files: libpspdownloader.zip
 
 
